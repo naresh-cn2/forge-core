@@ -1,0 +1,12 @@
+# Ignore 20GB Dataset
+datasets/
+data/
+*.csv
+*.bin
+
+# Ignore Compiled Muscle
+benchmarks/sentinel_v1
+axiom-hydra
+
+# Ignore Forensic Logs
+logs/*.log
