@@ -7,17 +7,20 @@
 
 int main(int argc, char *argv[]) {
     // ==========================================
-    // 1. THE SENTINEL GATE: Dynamic Pathing
+    // 1. THE SENTINEL GATE: Dynamic Configuration
     // ==========================================
-    if (argc != 2) {
-        fprintf(stderr, "🛡️ [SENTINEL] Usage: %s <dataset_path>\n", argv[0]);
+    // Expected Usage: ./forge-core <dataset> <delimiter> <expected_cols>
+    if (argc != 4) {
+        fprintf(stderr, "🛡️ [SENTINEL] Usage: %s <dataset_path> <delimiter> <expected_cols>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     const char *filepath = argv[1];
+    char delimiter = argv[2][0];
+    int expected_cols = atoi(argv[3]);
 
     // ==========================================
-    // 2. THE METAL LAYER: Hardware I/O & Metadata
+    // 2. THE METAL LAYER: Dynamic Ingestion
     // ==========================================
     int fd = open(filepath, O_RDONLY);
     if (fd == -1) {
@@ -27,62 +30,69 @@ int main(int argc, char *argv[]) {
 
     struct stat sb;
     if (fstat(fd, &sb) == -1) {
-        perror("⛓️ [METAL] Kernel Error: Failed to fetch file metadata via fstat");
+        perror("⛓️ [METAL] Kernel Error: Failed to fetch metadata");
         close(fd);
         exit(EXIT_FAILURE);
     }
 
     size_t file_size = sb.st_size;
-    printf("📡 [SYSTEM] Target identified: %s (Size: %zu bytes)\n", filepath, file_size);
-
-    // Guard against empty files to prevent mmap errors
     if (file_size == 0) {
-        printf("🛡️ [SYSTEM] File is empty. Execution terminated safely.\n");
+        printf("🛡️ [SYSTEM] File is empty. Execution terminated.\n");
         close(fd);
         return 0;
     }
 
-    // ==========================================
-    // 3. THE METAL LAYER: Zero-Copy Ingestion
-    // ==========================================
     char *map = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (map == MAP_FAILED) {
-        perror("⛓️ [METAL] Memory Error: mmap allocation failed");
+        perror("⛓️ [METAL] Memory Error: mmap failed");
         close(fd);
         exit(EXIT_FAILURE);
     }
 
-    printf("⚡ [SYSTEM] Zero-Copy cache initialized. Ready for throughput.\n");
+    printf("📡 [SYSTEM] Target: %s (%zu bytes)\n", filepath, file_size);
+    printf("⚡ [SYSTEM] Zero-Copy cache initialized.\n");
 
     // ==========================================
-    // 4. THE SHIELD LAYER: High-Speed Parsing
+    // 3. THE SHIELD LAYER: Structural Audit
     // ==========================================
-    printf("⚙️ [SHIELD] Initiating high-speed structural scan...\n");
+    printf("⚙️ [SHIELD] Scanning | Delimiter: '%c' | Target: %d cols\n", delimiter, expected_cols);
 
     size_t row_count = 0;
-    
-    // Mechanical pointer iteration over the zero-copy cache
+    int current_row_cols = 1; // Minimum 1 column per row
+    size_t malformed_rows = 0;
+
     for (size_t i = 0; i < file_size; i++) {
-        if (map[i] == '\n') {
+        if (map[i] == delimiter) {
+            current_row_cols++;
+        } else if (map[i] == '\n') {
             row_count++;
+            
+            // Integrity Check: Compare actual vs expected
+            if (current_row_cols != expected_cols) {
+                malformed_rows++;
+            }
+            current_row_cols = 1; // Reset for next line
         }
     }
-    
-    // Catch final row if the dataset lacks a trailing newline
-    if (map[file_size - 1] != '\n') {
+
+    // Handle trailing data without a newline
+    if (file_size > 0 && map[file_size - 1] != '\n') {
         row_count++;
+        if (current_row_cols != expected_cols) {
+            malformed_rows++;
+        }
     }
 
-    printf("📊 [SHIELD] Scan complete. Structural integrity verified: %zu rows detected.\n", row_count);
+    printf("📊 [SHIELD] Audit Complete.\n");
+    printf("   >> Total Rows Processed: %zu\n", row_count);
+    printf("   >> Integrity Breaches: %zu malformed rows detected\n", malformed_rows);
 
     // ==========================================
-    // 5. THE CLEANUP: Memory Release
+    // 4. THE CLEANUP
     // ==========================================
-    if (munmap(map, file_size) == -1) {
-        perror("⛓️ [METAL] Memory Error: munmap release failed");
-    }
+    munmap(map, file_size);
     close(fd);
 
-    printf("🛡️ [SYSTEM] Execution terminated. Strict RAM budget maintained.\n");
+    printf("🛡️ [SYSTEM] Execution terminated safely.\n");
     return 0;
 }
