@@ -1,0 +1,7 @@
+delimiter=,
+expected_cols=3
+header=true
+types=0,2,2
+required=1,1,1
+# Let's use Policy 1 (Strict) for the speed run
+policy=1
