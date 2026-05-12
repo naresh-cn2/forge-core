@@ -1,25 +1,35 @@
 #ifndef FORGE_H
 #define FORGE_H
 
-#include <stddef.h>
 #include <stdint.h>
+#include <pthread.h>
+#include <immintrin.h>
+
+// --- SCHEMA ARCHITECTURE ---
+typedef enum {
+    TYPE_STRING = 0,
+    TYPE_INT    = 1,
+} ColType;
 
 typedef struct {
     char delimiter;
     int expected_cols;
-} ForgeConfig;
+    uint32_t validation_mask; 
+} ForgeSchema;
 
+// --- THREADING & TELEMETRY ---
 typedef struct {
     int thread_id;
-    const char *map_base;
+    char *map_base;
     size_t start_offset;
     size_t end_offset;
+    ForgeSchema *schema;
+    
+    // Telemetry: Per-column error tracking
     size_t valid_rows;
-    size_t corrupt_bytes; // Tracks semantic violations (non-digits)
-    ForgeConfig *config;
+    size_t column_errors[32]; 
 } ForgeThreadTask;
 
-// Function prototype for the worker
 void *forge_worker(void *arg);
 
 #endif
